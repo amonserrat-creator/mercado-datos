@@ -1,0 +1,24 @@
+name: Descarga diaria del mercado
+on:
+  schedule:
+    - cron: '10 21 * * 1-5'   # 22:10 en Madrid en invierno (23:10 en verano); EE. UU. cierra a las 22:00 Madrid
+  workflow_dispatch: {}
+permissions:
+  contents: write
+jobs:
+  descarga:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 descarga.py
+      - name: Guardar datos
+        if: always()
+        run: |
+          git config user.name "descarga-automatica"
+          git config user.email "actions@users.noreply.github.com"
+          git add data
+          git commit -m "Datos $(date -u +%F)" || echo "sin cambios"
+          git push
