@@ -6,6 +6,7 @@ import json, os, sys, time, datetime, urllib.request, concurrent.futures as cf
 import ranking
 FRI = '--viernes' in sys.argv or datetime.datetime.utcnow().weekday() == 4
 T = json.load(open('tickers.json'))
+EXTRA = ['EURUSD=X']  # cambio euro/dólar para el simulacro (no entra en el ranking)
 UA = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36', 'Accept': 'application/json,text/plain,*/*'}
 def get(url, h=UA):
     err = None
@@ -54,7 +55,7 @@ def one(t):
     except Exception as e:
         if t.endswith('.MC'): raise
         out['H'] = nasdaq(t); out['src'] = 'nasdaq'
-    if FRI:
+    if FRI and t not in EXTRA:
         try:
             ty = ','.join(['quarterly' + x for x in TY] + ['annual' + x for x in TY] + ['trailingMarketCap', 'trailingPeRatio'])
             f = get('https://query2.finance.yahoo.com/ws/fundamentals-timeseries/v1/finance/timeseries/%s?symbol=%s&type=%s&period1=%d&period2=%d' % (ysym(t), ysym(t), ty, int(time.mktime(datetime.date(2021, 1, 1).timetuple())), p2))
@@ -68,15 +69,15 @@ def one(t):
     return out
 UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}; TRD = {}
 with cf.ThreadPoolExecutor(6) as ex:
-    for fut, t in [(ex.submit(one, t), t) for t in T]:
+    for fut, t in [(ex.submit(one, t), t) for t in T + EXTRA]:
         try:
             o = fut.result()
             if o.get('H'): UP['H'][t] = o['H']; SRC[o['src']] = SRC.get(o['src'], 0) + 1
             else: UP['E'][t] = 'sin velas'
             if o.get('F') and (o['F'].get('q') or o['F'].get('y')): UP['F'][t] = o['F']
-            if o.get('W'): WK[t] = o['W']
+            if o.get('W') and t not in EXTRA: WK[t] = o['W']
             if o.get('TR'): TRD[t] = o['TR']
-            if o.get('BH'): BHD[t] = o['BH']
+            if o.get('BH') and t not in EXTRA: BHD[t] = o['BH']
         except Exception as e: UP['E'][t] = repr(e)[:120]
 ult = {}
 for t, L in UP['H'].items(): ult[L[-1]['d']] = ult.get(L[-1]['d'], 0) + 1
