@@ -1,8 +1,8 @@
 {
- "generado": "2026-11-14T09:21:17Z",
+ "generado": "2026-11-14T09:22:15Z",
  "acciones": 536,
  "con_velas": 536,
- "con_resultados": 0,
+ "con_resultados": 536,
  "errores": 0,
  "fuentes": {
   "yahoo": 536
@@ -14,5 +14,5 @@
   ]
  ],
  "ejemplos_error": [],
- "viernes": false
+ "viernes": true
 }
