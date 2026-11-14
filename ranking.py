@@ -36,6 +36,11 @@ def ranking(W):
         if not r: continue
         T = _T(r); o = score(T, len(T.k), WIN)
         out[t] = {h: ([round(v[0], 4), round(v[1], 5)] + ([v[2]] if v[2] is not None else [])) if v else None for h, v in o.items()}
+        # año en curso frente a los años anteriores (dentro de los últimos 10 años)
+        y = T.k[-1][:4]; ks = T.k[-520:]; vs = T.v[-520:]
+        pre = [v for k, v in zip(ks, vs) if k[:4] < y]; ytd = [v for k, v in zip(ks, vs) if k[:4] == y]
+        f = lambda L, mn: [round(sum(x > 0 for x in L) / len(L), 4), round(st.mean(L), 5), len(L)] if len(L) >= mn else None
+        out[t]['pre'] = f(pre, 200); out[t]['ytd'] = f(ytd, 20); out[t]['y'] = y
     return out
 def prueba(W, desde='2019-W46'):
     """Cada semana desde `desde`: la 1.ª de cada ranking. Devuelve el resultado con costes."""
