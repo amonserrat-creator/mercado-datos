@@ -41,7 +41,7 @@ def prueba(W, desde='2019-W46'):
     """Cada semana desde `desde`: la 1.ª de cada ranking. Devuelve el resultado con costes."""
     TT = {t: _T(r) for t, r in W.items() if r}
     allk = sorted({k for r in W.values() for k in r if k >= desde})
-    res = {h: [] for h in list(WIN_BT) + ['med']}; base = []
+    res = {h: [] for h in list(WIN_BT) + ['med']}; base = []; det = {h: [] for h in res}
     for k in allk:
         best = {h: None for h in res}
         for t, T in TT.items():
@@ -50,13 +50,13 @@ def prueba(W, desde='2019-W46'):
             o = score(T, p, WIN_BT)
             for h in res:
                 v = o.get(h)
-                if v and (best[h] is None or (v[0], v[1]) > best[h][0]): best[h] = ((v[0], v[1]), T.v[p])
+                if v and (best[h] is None or (v[0], v[1]) > best[h][0]): best[h] = ((v[0], v[1]), T.v[p], t)
         for h in res:
-            if best[h]: res[h].append(best[h][1] - COST)
+            if best[h]: res[h].append(best[h][1] - COST); det[h].append((k, best[h][2], round(best[h][1], 4)))
         base.append(st.mean([r[k] for r in W.values() if k in r]))
     def summ(L):
         cap = 1000.0
         for x in L: cap *= 1 + x
         return {'n': len(L), 'final': round(cap), 'up': round(sum(x > 0 for x in L) / len(L), 3), 'avg': round(st.mean(L), 5), 'worst': round(min(L), 4)}
-    o = {h: summ(L) for h, L in res.items() if L}; o['todas'] = summ(base); o['desde'] = allk[0]; o['hasta'] = allk[-1]
+    o = {h: dict(summ(L), peores=sorted(det[h], key=lambda x: x[2])[:3]) for h, L in res.items() if L}; o['todas'] = summ(base); o['desde'] = allk[0]; o['hasta'] = allk[-1]
     return o

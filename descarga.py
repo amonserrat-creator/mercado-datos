@@ -78,6 +78,7 @@ json.dump(UP, open('data/upd.json', 'w'), separators=(',', ':'))
 if RANK and len(WK) >= 0.9 * len(T):
     json.dump({'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'hasta': max(max(r) for r in WK.values() if r), 'n': len(WK),
                'rk': ranking.ranking(WK), 'bt': ranking.prueba(WK)}, open('data/rank.json', 'w'), separators=(',', ':'))
+    json.dump(WK, open('data/semanas.json', 'w'), separators=(',', ':'))  # rendimientos lunes→viernes de cada semana, para revisar
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
        'ultima_sesion': sorted(ult.items())[-3:], 'ejemplos_error': list(UP['E'].items())[:5], 'viernes': FRI}
 json.dump(est, open('data/estado.json', 'w'), indent=1)
