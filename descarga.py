@@ -48,6 +48,7 @@ def one(t):
         if RANK:
             i0 = next((i for i, x in enumerate(L) if x['d'] >= DESDE_BH), None)
             if i0 is not None and L[0]['d'] < DESDE_BH: out['BH'] = (L[i0]['o'], L[-1]['c'])
+        if RANK: out['TR'] = ranking.tendencias({'d': [x['d'] for x in L], 'c': [x['c'] for x in L]})
         if RANK: out['W'] = ranking.semanas({'d': [x['d'] for x in L], 'o': [x['o'] for x in L], 'c': [x['c'] for x in L]})
         lim = datetime.datetime.utcfromtimestamp(p1).strftime('%Y-%m-%d'); out['H'] = [x for x in L if x['d'] >= lim]
     except Exception as e:
@@ -65,7 +66,7 @@ def one(t):
             out['F'] = {'q': conv(o, 'quarterly'), 'y': conv(o, 'annual'), 'mc': lastv('trailingMarketCap'), 'pe': lastv('trailingPeRatio'), 'src': 'Yahoo Finance', 'unit': 'miles de EUR' if t.endswith('.MC') else 'miles de USD'}
         except Exception: pass
     return out
-UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}
+UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}; TRD = {}
 with cf.ThreadPoolExecutor(6) as ex:
     for fut, t in [(ex.submit(one, t), t) for t in T]:
         try:
@@ -74,6 +75,7 @@ with cf.ThreadPoolExecutor(6) as ex:
             else: UP['E'][t] = 'sin velas'
             if o.get('F') and (o['F'].get('q') or o['F'].get('y')): UP['F'][t] = o['F']
             if o.get('W'): WK[t] = o['W']
+            if o.get('TR'): TRD[t] = o['TR']
             if o.get('BH'): BHD[t] = o['BH']
         except Exception as e: UP['E'][t] = repr(e)[:120]
 ult = {}
@@ -82,7 +84,7 @@ os.makedirs('data', exist_ok=True)
 json.dump(UP, open('data/upd.json', 'w'), separators=(',', ':'))
 if RANK and len(WK) >= 0.9 * len(T):
     json.dump({'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'hasta': max(max(r) for r in WK.values() if r), 'n': len(WK),
-               'rk': ranking.ranking(WK), 'bt': dict(ranking.prueba(WK), mantener=ranking.mantener(BHD, DESDE_BH))}, open('data/rank.json', 'w'), separators=(',', ':'))
+               'rk': ranking.ranking(WK), 'bt': dict(ranking.prueba(WK), mantener=ranking.mantener(BHD, DESDE_BH), **ranking.prueba_criterio(WK, TRD))}, open('data/rank.json', 'w'), separators=(',', ':'))
     json.dump(WK, open('data/semanas.json', 'w'), separators=(',', ':'))  # rendimientos lunes→viernes de cada semana, para revisar
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
        'ultima_sesion': sorted(ult.items())[-3:], 'ejemplos_error': list(UP['E'].items())[:5], 'viernes': FRI}

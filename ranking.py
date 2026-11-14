@@ -70,3 +70,47 @@ def mantener(BH, desde_dia):
     """BH = {ticker: (apertura del primer día >= desde_dia, último cierre)}: 1.000 € repartidos a partes iguales y sin tocar."""
     r = [c / o for o, c in BH.values() if o and c]
     return {'n': len(r), 'final': round(1000 * sum(r) / len(r)), 'desde': desde_dia} if r else None
+
+def tendencias(D):
+    """Tendencia al cierre de cada semana, igual que la página: corto 1 si cierre > media 50 y la media 50 sube (frente a 10
+    sesiones antes); largo 1 si cierre > media 200, media 50 > media 200 y la media 200 sube (frente a 20 sesiones antes)."""
+    c = D['c']; n = len(c); cs = [0.0]
+    for x in c: cs.append(cs[-1] + (x or 0))
+    sma = lambda e, w: (cs[e + 1] - cs[e + 1 - w]) / w if e + 1 - w >= 0 else None
+    last = {}
+    for i, d in enumerate(D['d']): last[_wk(d)] = i
+    out = {}
+    for k, e in last.items():
+        m50, m50b, m200, m200b = sma(e, 50), sma(e - 10, 50), sma(e, 200), sma(e - 20, 200)
+        tc = 1 if m50 and m50b and c[e] > m50 and m50 > m50b else 0
+        tl = 1 if m200 and m200b and c[e] > m200 and m50 > m200 and m200 > m200b else 0
+        out[k] = tc * 2 + tl   # 3 = alcista a corto y a largo
+    return out
+def prueba_criterio(W, TR, desde='2019-W46'):
+    """Criterio de Antonio (14/11/2026): % de semanas en positivo del año en curso <= media de las tres y <= 52 semanas,
+    y alcista a corto y a largo al cierre de la semana anterior; entre las que cumplen, la de mayor media de las tres.
+    Variantes para ver qué aporta cada parte. Si el año lleva menos de 8 semanas, la condición del año no se aplica."""
+    TT = {t: _T(r) for t, r in W.items() if r}
+    allk = sorted({k for r in W.values() for k in r if k >= desde})
+    V = {'crit': [], 'crit_sin_tend': [], 'med_tend': []}; det = {h: [] for h in V}; vacias = {h: 0 for h in V}
+    for k in allk:
+        best = {h: None for h in V}
+        for t, T in TT.items():
+            p = bisect.bisect_left(T.k, k)
+            if p == 0 or p >= len(T.k) or T.k[p] != k: continue
+            o = score(T, p, WIN_BT)
+            if not o['med']: continue
+            yk = [T.v[j] for j in range(p) if T.k[j][:4] == k[:4]]
+            ytd_ok = len(yk) < 8 or (sum(x > 0 for x in yk) / len(yk) <= o['med'][0] and sum(x > 0 for x in yk) / len(yk) <= o['s52'][0])
+            tr = (TR.get(t) or {}).get(T.k[p - 1]) == 3
+            sc = (o['med'][0], o['med'][1])
+            for h, ok in (('crit', ytd_ok and tr), ('crit_sin_tend', ytd_ok), ('med_tend', tr)):
+                if ok and (best[h] is None or sc > best[h][0]): best[h] = (sc, T.v[p], t)
+        for h in V:
+            if best[h]: V[h].append(best[h][1] - COST); det[h].append((k, best[h][2], round(best[h][1], 4)))
+            else: V[h].append(0.0); vacias[h] += 1      # ninguna cumple: esa semana no se invierte
+    def summ(L):
+        cap = 1000.0
+        for x in L: cap *= 1 + x
+        return {'n': len(L), 'final': round(cap), 'up': round(sum(x > 0 for x in L) / len(L), 3), 'avg': round(st.mean(L), 5), 'worst': round(min(L), 4)}
+    return {h: dict(summ(L), vacias=vacias[h], peores=sorted(det[h], key=lambda x: x[2])[:3], ultimas=det[h][-5:]) for h, L in V.items()}
