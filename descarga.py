@@ -19,6 +19,7 @@ ysym = lambda t: t if t.endswith('.MC') else t.replace('.', '-')
 p2 = int(time.time()) + 86400; p1 = p2 - 86400 * 25
 P10 = int(time.mktime((datetime.date.today() - datetime.timedelta(days=3700)).timetuple()))  # ~10 años y pico, para el ranking de los viernes
 RANK = FRI or '--ranking' in sys.argv
+DESDE_BH = '2019-11-11'  # lunes de la semana 2019-W46, la primera de la prueba
 TY = ['TotalRevenue', 'CostOfRevenue', 'GrossProfit', 'ResearchAndDevelopment', 'SellingGeneralAndAdministration', 'OperatingIncome', 'PretaxIncome', 'TaxProvision', 'NetIncome', 'InterestExpense', 'EBIT']
 MAP = {'rev': 'TotalRevenue', 'cogs': 'CostOfRevenue', 'gp': 'GrossProfit', 'rd': 'ResearchAndDevelopment', 'sga': 'SellingGeneralAndAdministration', 'op': 'OperatingIncome', 'ebit': 'EBIT', 'int': 'InterestExpense', 'pt': 'PretaxIncome', 'tax': 'TaxProvision', 'ni': 'NetIncome'}
 def conv(o, pre):
@@ -44,6 +45,9 @@ def one(t):
         j = get('https://query1.finance.yahoo.com/v8/finance/chart/%s?period1=%d&period2=%d&interval=1d' % (ysym(t), P10 if RANK else p1, p2))
         res = j['chart']['result'][0]; q = res['indicators']['quote'][0]; off = res['meta'].get('gmtoffset', 0)
         L = [{'d': datetime.datetime.utcfromtimestamp(ts + off).strftime('%Y-%m-%d'), 'o': q['open'][i], 'h': q['high'][i], 'l': q['low'][i], 'c': q['close'][i], 'v': q['volume'][i]} for i, ts in enumerate(res.get('timestamp') or []) if q['close'][i] is not None]
+        if RANK:
+            i0 = next((i for i, x in enumerate(L) if x['d'] >= DESDE_BH), None)
+            if i0 is not None and L[0]['d'] < DESDE_BH: out['BH'] = (L[i0]['o'], L[-1]['c'])
         if RANK: out['W'] = ranking.semanas({'d': [x['d'] for x in L], 'o': [x['o'] for x in L], 'c': [x['c'] for x in L]})
         lim = datetime.datetime.utcfromtimestamp(p1).strftime('%Y-%m-%d'); out['H'] = [x for x in L if x['d'] >= lim]
     except Exception as e:
@@ -61,7 +65,7 @@ def one(t):
             out['F'] = {'q': conv(o, 'quarterly'), 'y': conv(o, 'annual'), 'mc': lastv('trailingMarketCap'), 'pe': lastv('trailingPeRatio'), 'src': 'Yahoo Finance', 'unit': 'miles de EUR' if t.endswith('.MC') else 'miles de USD'}
         except Exception: pass
     return out
-UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}
+UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}
 with cf.ThreadPoolExecutor(6) as ex:
     for fut, t in [(ex.submit(one, t), t) for t in T]:
         try:
@@ -70,6 +74,7 @@ with cf.ThreadPoolExecutor(6) as ex:
             else: UP['E'][t] = 'sin velas'
             if o.get('F') and (o['F'].get('q') or o['F'].get('y')): UP['F'][t] = o['F']
             if o.get('W'): WK[t] = o['W']
+            if o.get('BH'): BHD[t] = o['BH']
         except Exception as e: UP['E'][t] = repr(e)[:120]
 ult = {}
 for t, L in UP['H'].items(): ult[L[-1]['d']] = ult.get(L[-1]['d'], 0) + 1
@@ -77,7 +82,7 @@ os.makedirs('data', exist_ok=True)
 json.dump(UP, open('data/upd.json', 'w'), separators=(',', ':'))
 if RANK and len(WK) >= 0.9 * len(T):
     json.dump({'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'hasta': max(max(r) for r in WK.values() if r), 'n': len(WK),
-               'rk': ranking.ranking(WK), 'bt': ranking.prueba(WK)}, open('data/rank.json', 'w'), separators=(',', ':'))
+               'rk': ranking.ranking(WK), 'bt': dict(ranking.prueba(WK), mantener=ranking.mantener(BHD, DESDE_BH))}, open('data/rank.json', 'w'), separators=(',', ':'))
     json.dump(WK, open('data/semanas.json', 'w'), separators=(',', ':'))  # rendimientos lunes→viernes de cada semana, para revisar
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
        'ultima_sesion': sorted(ult.items())[-3:], 'ejemplos_error': list(UP['E'].items())[:5], 'viernes': FRI}

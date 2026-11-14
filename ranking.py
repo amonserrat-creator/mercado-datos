@@ -58,5 +58,10 @@ def prueba(W, desde='2019-W46'):
         cap = 1000.0
         for x in L: cap *= 1 + x
         return {'n': len(L), 'final': round(cap), 'up': round(sum(x > 0 for x in L) / len(L), 3), 'avg': round(st.mean(L), 5), 'worst': round(min(L), 4)}
-    o = {h: dict(summ(L), peores=sorted(det[h], key=lambda x: x[2])[:3]) for h, L in res.items() if L}; o['todas'] = summ(base); o['desde'] = allk[0]; o['hasta'] = allk[-1]
+    o = {h: dict(summ(L), peores=sorted(det[h], key=lambda x: x[2])[:3]) for h, L in res.items() if L}; o['todas'] = summ(base); o['todas_c'] = summ([x - COST for x in base]); o['desde'] = allk[0]; o['hasta'] = allk[-1]
     return o
+
+def mantener(BH, desde_dia):
+    """BH = {ticker: (apertura del primer día >= desde_dia, último cierre)}: 1.000 € repartidos a partes iguales y sin tocar."""
+    r = [c / o for o, c in BH.values() if o and c]
+    return {'n': len(r), 'final': round(1000 * sum(r) / len(r)), 'desde': desde_dia} if r else None
