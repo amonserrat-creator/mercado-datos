@@ -1,0 +1,18 @@
+{
+ "generado": "2026-11-14T09:21:17Z",
+ "acciones": 536,
+ "con_velas": 536,
+ "con_resultados": 0,
+ "errores": 0,
+ "fuentes": {
+  "yahoo": 536
+ },
+ "ultima_sesion": [
+  [
+   "2026-11-13",
+   536
+  ]
+ ],
+ "ejemplos_error": [],
+ "viernes": false
+}
