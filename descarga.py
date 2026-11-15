@@ -3,7 +3,7 @@
 # formato que nube.py espera (mkt_upd_yh.json): {"H":{t:[{d,o,h,l,c,v}]},"F":{t:{...}},"E":{t:error}}
 # y data/estado.json con el resumen. Solo datos públicos de mercado.
 import json, os, sys, time, datetime, urllib.request, concurrent.futures as cf
-import ranking, ciclo, fundhist
+import ranking, ciclo, fundhist, vse
 FRI = '--viernes' in sys.argv or datetime.datetime.utcnow().weekday() == 4
 T = json.load(open('tickers.json'))
 EXTRA = ['EURUSD=X']  # cambio euro/dólar para el simulacro (no entra en el ranking)
@@ -50,6 +50,7 @@ def one(t):
             i0 = next((i for i, x in enumerate(L) if x['d'] >= DESDE_BH), None)
             if i0 is not None and L[0]['d'] < DESDE_BH: out['BH'] = (L[i0]['o'], L[-1]['c'])
         if RANK: out['TR'] = ranking.tendencias({'d': [x['d'] for x in L], 'c': [x['c'] for x in L]})
+        if RANK and t not in EXTRA: out['DL'] = {'d': [x['d'] for x in L], 'o': [x['o'] for x in L], 'c': [x['c'] for x in L]}
         if RANK: out['W'] = ranking.semanas({'d': [x['d'] for x in L], 'o': [x['o'] for x in L], 'c': [x['c'] for x in L]})
         lim = datetime.datetime.utcfromtimestamp(p1).strftime('%Y-%m-%d'); out['H'] = [x for x in L if x['d'] >= lim]
     except Exception as e:
@@ -71,7 +72,7 @@ def one(t):
             except Exception: pass
         except Exception: pass
     return out
-UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}; TRD = {}; FHD = {}
+UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}; TRD = {}; FHD = {}; DLD = {}
 with cf.ThreadPoolExecutor(6) as ex:
     for fut, t in [(ex.submit(one, t), t) for t in T + EXTRA]:
         try:
@@ -83,6 +84,7 @@ with cf.ThreadPoolExecutor(6) as ex:
             if o.get('TR'): TRD[t] = o['TR']
             if o.get('BH') and t not in EXTRA: BHD[t] = o['BH']
             if o.get('FH'): FHD[t] = o['FH']
+            if o.get('DL'): DLD[t] = o['DL']
         except Exception as e: UP['E'][t] = repr(e)[:120]
 ult = {}
 for t, L in UP['H'].items(): ult[L[-1]['d']] = ult.get(L[-1]['d'], 0) + 1
@@ -93,6 +95,13 @@ if RANK and len(WK) >= 0.9 * len(T):
                'rk': ranking.ranking(WK), 'bt': dict(ranking.prueba(WK), mantener=ranking.mantener(BHD, DESDE_BH), **ranking.prueba_criterio(WK, TRD))}, open('data/rank.json', 'w'), separators=(',', ':'))
     json.dump(WK, open('data/semanas.json', 'w'), separators=(',', ':'))  # rendimientos lunes→viernes de cada semana, para revisar
 if len(FHD) >= 0.9 * len(T): json.dump(FHD, open('data/fundhist.json', 'w'), separators=(',', ':'))
+if RANK and len(DLD) >= 0.9 * len(T):
+    try:
+        ult = max(D['d'][-1] for D in DLD.values()); dd = datetime.date.fromisoformat(ult)
+        sig = '%d-W%02d' % (dd + datetime.timedelta(days=7 - dd.weekday())).isocalendar()[:2]
+        V = vse.elegir(DLD, sig); V['generado'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'); V['datos'] = ult
+        json.dump(V, open('data/vse.json', 'w'), ensure_ascii=False, indent=1); print('VSE', sig, [x['t'] for x in V['top']])
+    except Exception as e: print('VSE error', repr(e)[:200])
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
        'ultima_sesion': sorted(ult.items())[-3:], 'ejemplos_error': list(UP['E'].items())[:5], 'viernes': FRI}
 json.dump(est, open('data/estado.json', 'w'), indent=1)
