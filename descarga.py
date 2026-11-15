@@ -3,7 +3,7 @@
 # formato que nube.py espera (mkt_upd_yh.json): {"H":{t:[{d,o,h,l,c,v}]},"F":{t:{...}},"E":{t:error}}
 # y data/estado.json con el resumen. Solo datos públicos de mercado.
 import json, os, sys, time, datetime, urllib.request, concurrent.futures as cf
-import ranking, ciclo, fundhist, vse
+import ranking, ciclo, fundhist
 FRI = '--viernes' in sys.argv or datetime.datetime.utcnow().weekday() == 4
 T = json.load(open('tickers.json'))
 EXTRA = ['EURUSD=X']  # cambio euro/dólar para el simulacro (no entra en el ranking)
@@ -99,7 +99,7 @@ if RANK and len(DLD) >= 0.9 * len(T):
     try:
         ult = max(D['d'][-1] for D in DLD.values()); dd = datetime.date.fromisoformat(ult)
         sig = '%d-W%02d' % (dd + datetime.timedelta(days=7 - dd.weekday())).isocalendar()[:2]
-        V = vse.elegir(DLD, sig); V['generado'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'); V['datos'] = ult
+        import vse; V = vse.elegir(DLD, sig); V['generado'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'); V['datos'] = ult
         json.dump(V, open('data/vse.json', 'w'), ensure_ascii=False, indent=1); print('VSE', sig, [x['t'] for x in V['top']])
     except Exception as e: print('VSE error', repr(e)[:200])
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
