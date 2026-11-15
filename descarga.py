@@ -97,9 +97,9 @@ if RANK and len(WK) >= 0.9 * len(T):
 if len(FHD) >= 0.9 * len(T): json.dump(FHD, open('data/fundhist.json', 'w'), separators=(',', ':'))
 if RANK and len(DLD) >= 0.9 * len(T):
     try:
-        ult = max(D['d'][-1] for D in DLD.values()); dd = datetime.date.fromisoformat(ult)
+        uvse = max(D['d'][-1] for D in DLD.values()); dd = datetime.date.fromisoformat(uvse)
         sig = '%d-W%02d' % (dd + datetime.timedelta(days=7 - dd.weekday())).isocalendar()[:2]
-        import vse; V = vse.elegir(DLD, sig); V['generado'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'); V['datos'] = ult
+        import vse; V = vse.elegir(DLD, sig); V['generado'] = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'); V['datos'] = uvse
         json.dump(V, open('data/vse.json', 'w'), ensure_ascii=False, indent=1); print('VSE', sig, [x['t'] for x in V['top']])
     except Exception as e: print('VSE error', repr(e)[:200])
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
