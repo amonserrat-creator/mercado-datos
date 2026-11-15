@@ -22,11 +22,12 @@ def one(t):
         k = r['meta']['type'][0]; a = [x for x in (r.get(k) or []) if x]
         if a: o[k] = [[x['asOfDate'], (x.get('reportedValue') or {}).get('raw')] for x in a]
     return o
-OUT = {}; E = {}
-with cf.ThreadPoolExecutor(6) as ex:
-    for fut, t in [(ex.submit(one, t), t) for t in T]:
-        try: OUT[t] = fut.result()
-        except Exception as e: E[t] = repr(e)[:100]
-json.dump(OUT, open('data/fundhist.json', 'w'), separators=(',', ':'))
-n_a = [len(o.get('annualTotalRevenue', [])) for o in OUT.values()]
-print('acciones', len(OUT), 'errores', len(E), 'años de ventas (min/mediana/max):', min(n_a), sorted(n_a)[len(n_a) // 2], max(n_a), list(E.items())[:3])
+if __name__ == '__main__':
+    OUT = {}; E = {}
+    with cf.ThreadPoolExecutor(6) as ex:
+        for fut, t in [(ex.submit(one, t), t) for t in T]:
+            try: OUT[t] = fut.result()
+            except Exception as e: E[t] = repr(e)[:100]
+    json.dump(OUT, open('data/fundhist.json', 'w'), separators=(',', ':'))
+    n_a = [len(o.get('annualTotalRevenue', [])) for o in OUT.values()]
+    print('acciones', len(OUT), 'errores', len(E), 'años de ventas (min/mediana/max):', min(n_a), sorted(n_a)[len(n_a) // 2], max(n_a), list(E.items())[:3])

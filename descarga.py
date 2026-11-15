@@ -3,7 +3,7 @@
 # formato que nube.py espera (mkt_upd_yh.json): {"H":{t:[{d,o,h,l,c,v}]},"F":{t:{...}},"E":{t:error}}
 # y data/estado.json con el resumen. Solo datos públicos de mercado.
 import json, os, sys, time, datetime, urllib.request, concurrent.futures as cf
-import ranking
+import ranking, ciclo, fundhist
 FRI = '--viernes' in sys.argv or datetime.datetime.utcnow().weekday() == 4
 T = json.load(open('tickers.json'))
 EXTRA = ['EURUSD=X']  # cambio euro/dólar para el simulacro (no entra en el ranking)
@@ -65,9 +65,13 @@ def one(t):
                 if a: o[k] = [[x['asOfDate'], (x.get('reportedValue') or {}).get('raw')] for x in a]
             lastv = lambda k: o[k][-1][1] if o.get(k) else None
             out['F'] = {'q': conv(o, 'quarterly'), 'y': conv(o, 'annual'), 'mc': lastv('trailingMarketCap'), 'pe': lastv('trailingPeRatio'), 'src': 'Yahoo Finance', 'unit': 'miles de EUR' if t.endswith('.MC') else 'miles de USD'}
+            try:
+                fh = fundhist.one(t); out['FH'] = fh; cv = ciclo.metricas(fh)
+                if cv: out['F']['cv'] = cv
+            except Exception: pass
         except Exception: pass
     return out
-UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}; TRD = {}
+UP = {'H': {}, 'F': {}, 'E': {}}; SRC = {}; WK = {}; BHD = {}; TRD = {}; FHD = {}
 with cf.ThreadPoolExecutor(6) as ex:
     for fut, t in [(ex.submit(one, t), t) for t in T + EXTRA]:
         try:
@@ -78,6 +82,7 @@ with cf.ThreadPoolExecutor(6) as ex:
             if o.get('W') and t not in EXTRA: WK[t] = o['W']
             if o.get('TR'): TRD[t] = o['TR']
             if o.get('BH') and t not in EXTRA: BHD[t] = o['BH']
+            if o.get('FH'): FHD[t] = o['FH']
         except Exception as e: UP['E'][t] = repr(e)[:120]
 ult = {}
 for t, L in UP['H'].items(): ult[L[-1]['d']] = ult.get(L[-1]['d'], 0) + 1
@@ -87,6 +92,7 @@ if RANK and len(WK) >= 0.9 * len(T):
     json.dump({'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'hasta': max(max(r) for r in WK.values() if r), 'n': len(WK),
                'rk': ranking.ranking(WK), 'bt': dict(ranking.prueba(WK), mantener=ranking.mantener(BHD, DESDE_BH), **ranking.prueba_criterio(WK, TRD))}, open('data/rank.json', 'w'), separators=(',', ':'))
     json.dump(WK, open('data/semanas.json', 'w'), separators=(',', ':'))  # rendimientos lunes→viernes de cada semana, para revisar
+if len(FHD) >= 0.9 * len(T): json.dump(FHD, open('data/fundhist.json', 'w'), separators=(',', ':'))
 est = {'ranking': len(WK) if RANK else None, 'generado': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'acciones': len(T), 'con_velas': len(UP['H']), 'con_resultados': len(UP['F']), 'errores': len(UP['E']), 'fuentes': SRC,
        'ultima_sesion': sorted(ult.items())[-3:], 'ejemplos_error': list(UP['E'].items())[:5], 'viernes': FRI}
 json.dump(est, open('data/estado.json', 'w'), indent=1)
