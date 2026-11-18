@@ -1,0 +1,24 @@
+name: Precios de la última hora
+on:
+  schedule:
+    - cron: '35 14-21 * * 1-5'   # cada hora a las :35 de 15:35 a 22:35 en Madrid (invierno); en verano, una hora más tarde
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: intradia, cancel-in-progress: false }
+jobs:
+  precios:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - run: python3 intradia.py
+      - name: Guardar
+        run: |
+          git config user.name "descarga-automatica"
+          git config user.email "actions@users.noreply.github.com"
+          git add data/intra.json
+          git commit -m "Precios $(date -u +%FT%H:%M)" || echo "sin cambios"
+          for i in 1 2 3; do git pull --rebase -q origin main && git push && break; sleep 5; done
