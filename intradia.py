@@ -22,7 +22,7 @@ PX = {}
 with cf.ThreadPoolExecutor(8) as ex:
     for k, v in ex.map(one, list(SYM)):
         if v: PX[k] = v
-fx = PX.pop('EURUSD', [None])[0]
-out = {'at': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'fx': fx, 'n': len(PX), 'faltan': sorted(set(SYM) - set(PX) - {'EURUSD'})[:20], 'px': PX}
+FXV = PX.pop('EURUSD', [None, None, None]); fx = FXV[0]
+out = {'at': datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ'), 'fx': fx, 'fxprev': FXV[1], 'fxt': FXV[2], 'n': len(PX), 'faltan': sorted(set(SYM) - set(PX) - {'EURUSD'})[:20], 'px': PX}
 json.dump(out, open('data/intra.json', 'w'), separators=(',', ':'))
 print(out['at'], 'precios', len(PX), 'de', len(SYM) - 1, 'cambio', fx, 'faltan', out['faltan'][:10])
