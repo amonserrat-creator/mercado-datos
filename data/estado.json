@@ -1,19 +1,19 @@
 {
- "ranking": 536,
- "generado": "2026-11-20T21:54:37Z",
+ "ranking": null,
+ "generado": "2026-11-23T21:56:42Z",
  "acciones": 536,
  "con_velas": 537,
- "con_resultados": 536,
+ "con_resultados": 0,
  "errores": 0,
  "fuentes": {
   "yahoo": 537
  },
  "ultima_sesion": [
   [
-   "2026-11-20",
+   "2026-11-23",
    537
   ]
  ],
  "ejemplos_error": [],
- "viernes": true
+ "viernes": false
 }
