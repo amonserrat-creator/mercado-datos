@@ -1,6 +1,6 @@
 {
  "ranking": null,
- "generado": "2026-11-25T22:00:20Z",
+ "generado": "2026-11-26T21:59:38Z",
  "acciones": 536,
  "con_velas": 537,
  "con_resultados": 0,
@@ -10,8 +10,16 @@
  },
  "ultima_sesion": [
   [
+   "2026-11-19",
+   1
+  ],
+  [
    "2026-11-25",
-   537
+   500
+  ],
+  [
+   "2026-11-26",
+   36
   ]
  ],
  "ejemplos_error": [],
